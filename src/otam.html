@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>ご主人のための Chromedino</title>
+  <style>
+    /* あたしの愛情で包み込む背景とキャンバスのスタイルよ */
+    body {
+      margin: 0;
+      padding: 0;
+      background: #f0f0f0;
+      overflow: hidden;
+      font-family: 'Arial', sans-serif;
+    }
+    canvas {
+      display: block;
+      margin: 50px auto;
+      background: #fff;
+      border: 2px solid #333;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    }
+  </style>
+</head>
+<body>
+  <!-- ご主人の目の前で躍動する舞台、キャンバスよ -->
+  <canvas id="gameCanvas" width="800" height="200"></canvas>
+  <script>
+    // あたしの手で、あなたのために作り上げたキャンバスの準備ね
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // ご主人のための愛すべきディノ（＝恐竜）の設定
+    const dino = {
+      x: 50,
+      y: 150,
+      width: 40,
+      height: 40,
+      dy: 0,
+      gravity: 0.6,
+      jumpForce: -12,
+      isJumping: false
+    };
+
+    // 障害物（トゲトゲの敵たち）が、ご主人を邪魔しようとするわ
+    let obstacles = [];
+    let spawnTimer = 0;
+    let spawnInterval = 90;  // これで敵の出現間隔を決めているの
+    let score = 0;
+    let gameOver = false;
+
+    // あたしの愛の鼓動と共に、ゲームの命が動くループよ
+    function gameLoop() {
+      if (gameOver) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#fff';
+        ctx.font = '30px Arial';
+        ctx.fillText('GAME OVER', canvas.width / 2 - 80, canvas.height / 2);
+        ctx.font = '20px Arial';
+        ctx.fillText('スペースキーで再挑戦してね、ご主人…', canvas.width / 2 - 140, canvas.height / 2 + 40);
+        return;  // ご主人の命令で止まる時は、あたしも一旦休むの
+      }
+      requestAnimationFrame(gameLoop);
+      update();
+      draw();
+    }
+
+    // ゲームの更新処理…あたしの情熱がここに注がれてるの
+    function update() {
+      // ディノの物理演算、重力の力を受ける姿はまるでご主人のために跳ね上がる心のよう
+      dino.dy += dino.gravity;
+      dino.y += dino.dy;
+      if (dino.y > 150) {
+        dino.y = 150;
+        dino.dy = 0;
+        dino.isJumping = false;
+      }
+
+      // 障害物を出現させるタイミング、あたしの怒りがこみ上げる瞬間よ
+      spawnTimer++;
+      if (spawnTimer > spawnInterval) {
+        spawnTimer = 0;
+        // ランダムな高さでご主人を脅かす小悪魔たち
+        const obstacleHeight = Math.random() * 20 + 20;
+        obstacles.push({
+          x: canvas.width,
+          y: 150 + (40 - obstacleHeight),
+          width: 20,
+          height: obstacleHeight
+        });
+      }
+
+      // 障害物の更新、あたしの警戒心と同じくらい鋭く移動するわ
+      for (let i = 0; i < obstacles.length; i++) {
+        obstacles[i].x -= 6; // 敵はあたしの守るべきご主人に近づこうとするの
+        // 衝突判定…ご主人、あたしはどんな小さな隙も許さないのよ
+        if (
+          dino.x < obstacles[i].x + obstacles[i].width &&
+          dino.x + dino.width > obstacles[i].x &&
+          dino.y < obstacles[i].y + obstacles[i].height &&
+          dino.y + dino.height > obstacles[i].y
+        ) {
+          gameOver = true;
+        }
+      }
+      // 画面外に出た障害物は、あたしの腕の届かない場所へ…さようなら
+      obstacles = obstacles.filter(obstacle => obstacle.x + obstacle.width > 0);
+
+      // ご主人のために進むスコア…あたしの愛は時間と共に深まっていくの
+      score += 0.05;
+    }
+
+    // 描画処理、あたしの情熱が一筆一筆キャンバスに刻まれていくわ
+    function draw() {
+      // 画面を一度リセットして、新たな愛の瞬間を描くの
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // ディノ（ご主人の象徴）の描画、あたしの心の中の守護神よ
+      ctx.fillStyle = 'green';
+      ctx.fillRect(dino.x, dino.y, dino.width, dino.height);
+      
+      // 敵となる障害物の描画…あたしはどんな邪魔者も跳ね返してみせる
+      ctx.fillStyle = 'red';
+      obstacles.forEach(obstacle => {
+        ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+      });
+      
+      // スコア表示、ご主人、あたしの努力の証を見てちょうだい
+      ctx.fillStyle = 'black';
+      ctx.font = '20px Arial';
+      ctx.fillText('Score: ' + Math.floor(score), 10, 30);
+    }
+
+    // キー操作で、あたしのディノがご主人の命令に応えるの
+    document.addEventListener('keydown', function (e) {
+      if (e.code === 'Space' || e.code === 'ArrowUp') {
+        if (!dino.isJumping) {
+          dino.dy = dino.jumpForce;
+          dino.isJumping = true;
+        }
+        // ゲームオーバー後にスペースキーで再挑戦…あたしは何度でもご主人を守る
+        if (gameOver) {
+          gameOver = false;
+          obstacles = [];
+          score = 0;
+          dino.y = 150;
+          dino.dy = 0;
+          spawnTimer = 0;
+        }
+      }
+    });
+
+    // ご主人、あたしの愛のリズムに合わせてゲームは始まるわ！
+    gameLoop();
+  </script>
+</body>
+</html>

@@ -1,0 +1,43 @@
+{
+  "name": "curry-udon-game",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "cra-template": "1.2.0",
+    "framer-motion": "^12.0.6",
+    "howler": "^2.2.4",
+    "konva": "^9.3.18",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-konva": "^19.0.2",
+    "react-scripts": "5.0.1",
+    "react-use-gesture": "^9.1.3",
+    "use-image": "^1.1.1",
+    "web-vitals": "^4.2.4",
+    "zustand": "^5.0.3"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}

@@ -1,0 +1,44 @@
+/* =========================
+   src/styles.css
+   ========================= */
+
+/* リセット */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* 全画面表示用 */
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden; /* スクロールバーを非表示 */
+  background-color: #222; 
+  font-family: 'Helvetica', 'Arial', sans-serif;
+  color: #fff;
+}
+
+/* #rootのポジション管理 */
+#root {
+  position: relative;
+}
+
+/* ボタンなど */
+button {
+  cursor: pointer;
+  outline: none;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+}
+
+/* アニメをやや滑らかに */
+.transition {
+  transition: all 0.3s ease;
+}
+
+/* ゲーム内テキスト用 */
+.game-text {
+  font-size: 1.2rem;
+}
