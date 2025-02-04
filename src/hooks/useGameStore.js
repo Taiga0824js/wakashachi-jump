@@ -1,6 +1,4 @@
-// =========================
 // src/hooks/useGameStore.js
-// =========================
 import { create } from 'zustand';
 
 const useGameStore = create((set) => ({
@@ -18,7 +16,7 @@ const useGameStore = create((set) => ({
   isJumping: false,
   velocityY: 0,
   gravity: 1.2,       // 重力を増加
-  jumpVelocity: -18,  // 初速を減少
+  jumpVelocity: -18,  // ジャンプ初速を元に戻す（以前の設定 -18）
 
   // --- 具材 ---
   ingredientList: [],
@@ -47,9 +45,11 @@ const useGameStore = create((set) => ({
   startJump: () =>
     set((state) => {
       if (!state.isJumping) {
+        // ジャンプ開始時にキャラクターの位置を即座に更新する処理はそのまま
         return {
           isJumping: true,
           velocityY: state.jumpVelocity,
+          characterY: state.characterY + state.jumpVelocity,
         };
       }
       return {};

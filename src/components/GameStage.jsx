@@ -1,6 +1,6 @@
 // src/components/GameStage.jsx
 import React, { useEffect, useRef, useState } from 'react';
-import { Stage, Layer, Rect, Image as KonvaImage, Text, Circle } from 'react-konva';
+import { Stage, Layer, Rect, Image as KonvaImage, Text, Circle, Ellipse } from 'react-konva';
 import useImage from 'use-image';
 import useGameStore from '../hooks/useGameStore';
 import useAudio from '../hooks/useAudio';
@@ -51,9 +51,11 @@ const GameStage = () => {
   // requestAnimationFrame 管理
   const reqRef = useRef(null);
 
-  // 衝突判定用の半径
-  const CHAR_RADIUS = 20;
-  const ING_RADIUS = 10;
+  // ★ 修正ポイント ★
+  // 従来の円形当たり判定（CHAR_RADIUS, ING_RADIUS）は使わず、楕円形に変更するためのパラメータ
+  const CHAR_RX = 15;         // 横方向の半径（従来のCHAR_RADIUS相当）
+  const CHAR_RY = 15 * 1.5;     // 縦方向の半径を1.5倍に伸ばす
+  const collisionShiftY = 5;    // 衝突判定の中心を下に5pxずらす
 
   // ============================
   // メインループ
@@ -76,7 +78,7 @@ const GameStage = () => {
 
         if (checkCollision(ing)) {
           collisions.push(ing.id);
-          // 生成した具材との衝突位置でパーティクル効果を発生
+          // 衝突位置でパーティクル効果を発生
           const collX = ing.x + 20;
           const collY = ing.y + 20;
           addParticle(collX, collY);
@@ -106,6 +108,10 @@ const GameStage = () => {
   const scaledCharSize = baseCharSize * characterScale;
   const charOffset = (scaledCharSize - baseCharSize) / 2;
 
+  // 衝突判定のためのキャラクターの中心位置（楕円の中心）
+  const charCenterX = characterX + 50;
+  const charCenterY = characterY + 50 + collisionShiftY;
+
   // ============================
   // パーティクルの追加・更新
   // ============================
@@ -132,9 +138,9 @@ const GameStage = () => {
   // ============================
   const checkCollision = (ing) => {
     /**
-     * tier=1(下段=0.5段) or tier=2(中段=1段)
+     * tier=1 (下段=0.5段) or tier=2 (中段=1段)
      *   → ジャンプ中なら衝突せず飛び越える
-     * tier=3(上段=3段)
+     * tier=3 (上段=3段)
      *   → 地上なら衝突せずすり抜ける
      */
     if ((ing.tier === 1 || ing.tier === 2) && isJumping) {
@@ -144,20 +150,13 @@ const GameStage = () => {
       return false;
     }
 
-    // 円形衝突判定
-    const charCX = characterX + 50;
-    const charCY = characterY + 50;
+    // 楕円形衝突判定
     const ingCX = ing.x + 20;
     const ingCY = ing.y + 20;
-
-    const dx = charCX - ingCX;
-    const dy = charCY - ingCY;
-    const distSq = dx * dx + dy * dy;
-
-    const collisionDist = CHAR_RADIUS + ING_RADIUS;
-    const collisionDistSq = collisionDist * collisionDist;
-
-    if (distSq <= collisionDistSq) {
+    const dx = charCenterX - ingCX;
+    const dy = charCenterY - ingCY;
+    // 楕円の方程式: (dx^2)/(rx^2) + (dy^2)/(ry^2) <= 1
+    if ((dx * dx) / (CHAR_RX * CHAR_RX) + (dy * dy) / (CHAR_RY * CHAR_RY) <= 1) {
       const needed = orderTypes[currentIngredientIndex];
       if (ing.type === needed) {
         if (currentIngredientIndex === orderTypes.length - 1) {
@@ -265,12 +264,13 @@ const GameStage = () => {
         ))}
       </Layer>
 
-      {/* デバッグ用：当たり判定円 */}
+      {/* デバッグ用：当たり判定楕円 */}
       <Layer>
-        <Circle
-          x={characterX + 50}
-          y={characterY + 50}
-          radius={CHAR_RADIUS}
+        <Ellipse
+          x={charCenterX}
+          y={charCenterY}
+          radiusX={CHAR_RX}
+          radiusY={CHAR_RY}
           fill="rgba(128, 0, 128, 0.3)"
           listening={false}
         />
@@ -279,7 +279,7 @@ const GameStage = () => {
             key={`col-${ing.id}`}
             x={ing.x + 20}
             y={ing.y + 20}
-            radius={ING_RADIUS}
+            radius={7} // こちらはそのまま小さく
             fill="rgba(128, 0, 128, 0.3)"
             listening={false}
           />
