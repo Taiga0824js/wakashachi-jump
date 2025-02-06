@@ -1,6 +1,6 @@
 // src/components/GameStage.jsx
 import React, { useEffect, useRef, useState } from 'react';
-import { Stage, Layer, Rect, Image as KonvaImage, Text, Circle, Ellipse } from 'react-konva';
+import { Stage, Layer, Rect, Image as KonvaImage, Text, Circle } from 'react-konva';
 import useImage from 'use-image';
 import useGameStore from '../hooks/useGameStore';
 import useAudio from '../hooks/useAudio';
@@ -24,6 +24,7 @@ const GameStage = () => {
     resetCurrentIngredientIndex,
     incrementMistake,
     isJumping,
+    score,
   } = useGameStore();
 
   // 画像読み込み
@@ -38,7 +39,7 @@ const GameStage = () => {
   const { playSound: playMiss } = useAudio(missSE);
   const { playSound: playCrossbow } = useAudio(crossbowSE);
 
-  // 正しい具材順
+  // 具材の種類（4種類）
   const orderTypes = ['negi', 'niku', 'abura', 'kamaboko'];
 
   // 背景スクロール用
@@ -51,34 +52,31 @@ const GameStage = () => {
   // requestAnimationFrame 管理
   const reqRef = useRef(null);
 
-  // ★ 修正ポイント ★
-  // 従来の円形当たり判定（CHAR_RADIUS, ING_RADIUS）は使わず、楕円形に変更するためのパラメータ
-  const CHAR_RX = 15;         // 横方向の半径（従来のCHAR_RADIUS相当）
-  const CHAR_RY = 15 * 1.5;     // 縦方向の半径を1.5倍に伸ばす
-  const collisionShiftY = 5;    // 衝突判定の中心を下に5pxずらす
+  // 具材の表示サイズと衝突判定用オフセット設定
+  const ingredientSize = 55; // 具材画像は55×55に拡大
+  const ingredientCenterOffsetX = ingredientSize / 2 + 5; // (27.5 + 5 = 32.5)
+  const ingredientCenterOffsetY = ingredientSize / 2;       // 27.5
+  const visualOffsetX = -5; // 具材画像の描画位置を左に5pxずらす
 
-  // ============================
+  // 固定のステージサイズ（PC版用）：1280×720
+  const stageWidth = 1280;
+  const stageHeight = 720;
+
   // メインループ
-  // ============================
   useEffect(() => {
     if (!started || gameOver) {
       if (reqRef.current) cancelAnimationFrame(reqRef.current);
       return;
     }
-
     const animate = () => {
-      // キャラクターの物理更新
       updateCharacter();
-
-      // 具材の移動＆衝突判定
+      // 具材移動速度：基本速度3を1点ごとに2%アップ
+      const currentSpeed = 3 * (1 + 0.02 * score);
       const collisions = [];
       ingredientList.forEach((ing) => {
-        // 具材を左へ移動
-        ing.x -= 3;
-
+        ing.x -= currentSpeed;
         if (checkCollision(ing)) {
           collisions.push(ing.id);
-          // 衝突位置でパーティクル効果を発生
           const collX = ing.x + 20;
           const collY = ing.y + 20;
           addParticle(collX, collY);
@@ -86,77 +84,53 @@ const GameStage = () => {
           collisions.push(ing.id);
         }
       });
-
       collisions.forEach((id) => removeIngredient(id));
-
-      // パーティクルのアニメーション更新
       updateParticles();
-
-      // 背景スクロール
       setBgOffset((prev) => prev - 1);
-
       reqRef.current = requestAnimationFrame(animate);
     };
-
     reqRef.current = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(reqRef.current);
-  }, [started, gameOver, ingredientList, updateCharacter, removeIngredient]);
+  }, [started, gameOver, ingredientList, updateCharacter, removeIngredient, score]);
 
-  // キャラクターにジャンプ時スケール効果（ジャンプ中は1.1倍に拡大）
-  const characterScale = isJumping ? 1.1 : 1.0;
+  // キャラクター表示用パラメータ
   const baseCharSize = 100;
+  const characterScale = isJumping ? 1.1 : 1.0;
   const scaledCharSize = baseCharSize * characterScale;
   const charOffset = (scaledCharSize - baseCharSize) / 2;
 
-  // 衝突判定のためのキャラクターの中心位置（楕円の中心）
-  const charCenterX = characterX + 50;
-  const charCenterY = characterY + 50 + collisionShiftY;
-
-  // ============================
-  // パーティクルの追加・更新
-  // ============================
-  const addParticle = (x, y) => {
-    const id = Date.now();
-    const newParticle = { id, x, y, radius: 10, opacity: 1.0 };
-    setParticles((prev) => [...prev, newParticle]);
-  };
-
-  const updateParticles = () => {
-    setParticles((prevParticles) =>
-      prevParticles
-        .map((p) => ({
-          ...p,
-          radius: p.radius + 0.5,
-          opacity: p.opacity - 0.03,
-        }))
-        .filter((p) => p.opacity > 0)
-    );
-  };
-
-  // ============================
-  // 衝突判定
-  // ============================
+  // 衝突判定関数（修正済み）
   const checkCollision = (ing) => {
-    /**
-     * tier=1 (下段=0.5段) or tier=2 (中段=1段)
-     *   → ジャンプ中なら衝突せず飛び越える
-     * tier=3 (上段=3段)
-     *   → 地上なら衝突せずすり抜ける
-     */
-    if ((ing.tier === 1 || ing.tier === 2) && isJumping) {
-      return false;
+    const scaleFactor = 0.9;
+    // キャラクターの中心（固定位置）
+    const currentCharCenterX = characterX + 50;
+    const currentCharCenterY = characterY + 50;
+    // 具材の中心位置（判定用）
+    const ingCX = ing.x + ingredientCenterOffsetX;
+    const ingCY = ing.y + ingredientCenterOffsetY;
+    let rx, ry;
+    if (ing.tier === 1) {
+      // Tier1: 小さめの当たり判定で回避しやすくする
+      rx = 8 * scaleFactor;
+      ry = (8 * 1.5) * scaleFactor;
+    } else if (ing.tier === 2) {
+      if (isJumping) {
+        // ジャンプ中なら小さめにして、着地時の衝突を避ける
+        rx = 8 * scaleFactor;
+        ry = (8 * 1.5) * scaleFactor;
+      } else {
+        // 地上では、あまり大きすぎないサイズに調整
+        rx = 10 * scaleFactor;
+        ry = (10 * 1.5) * scaleFactor;
+      }
+    } else if (ing.tier === 3 || ing.tier === 4) {
+      // Tier3,4 はそのまま大きめ
+      rx = 15 * scaleFactor * 1.8;
+      ry = (15 * 1.5) * scaleFactor * 1.8;
     }
-    if (ing.tier === 3 && !isJumping) {
-      return false;
-    }
-
-    // 楕円形衝突判定
-    const ingCX = ing.x + 20;
-    const ingCY = ing.y + 20;
-    const dx = charCenterX - ingCX;
-    const dy = charCenterY - ingCY;
-    // 楕円の方程式: (dx^2)/(rx^2) + (dy^2)/(ry^2) <= 1
-    if ((dx * dx) / (CHAR_RX * CHAR_RX) + (dy * dy) / (CHAR_RY * CHAR_RY) <= 1) {
+    const dx = currentCharCenterX - ingCX;
+    const dy = currentCharCenterY - ingCY;
+    if ((dx * dx) / (rx * rx) + (dy * dy) / (ry * ry) <= 1) {
       const needed = orderTypes[currentIngredientIndex];
       if (ing.type === needed) {
         if (currentIngredientIndex === orderTypes.length - 1) {
@@ -175,11 +149,24 @@ const GameStage = () => {
     return false;
   };
 
-  // ============================
-  // レンダリング
-  // ============================
-  const stageWidth = window.innerWidth;
-  const stageHeight = window.innerHeight;
+  // パーティクルの追加・更新
+  const addParticle = (x, y) => {
+    const id = Date.now();
+    const newParticle = { id, x, y, radius: 10, opacity: 1.0 };
+    setParticles((prev) => [...prev, newParticle]);
+  };
+
+  const updateParticles = () => {
+    setParticles((prevParticles) =>
+      prevParticles
+        .map((p) => ({
+          ...p,
+          radius: p.radius + 0.5,
+          opacity: p.opacity - 0.03,
+        }))
+        .filter((p) => p.opacity > 0)
+    );
+  };
 
   return (
     <Stage width={stageWidth} height={stageHeight}>
@@ -195,7 +182,6 @@ const GameStage = () => {
           fillLinearGradientColorStops={[0, '#7ddff8', 1, '#fffceb']}
         />
       </Layer>
-
       {/* 地面レイヤー */}
       <Layer>
         {jimenImg && (
@@ -217,10 +203,8 @@ const GameStage = () => {
           />
         )}
       </Layer>
-
       {/* キャラクター＆具材レイヤー */}
       <Layer>
-        {/* キャラクター（ジャンプ時は拡大表示） */}
         {hitoImg && (
           <KonvaImage
             image={hitoImg}
@@ -230,7 +214,6 @@ const GameStage = () => {
             height={scaledCharSize}
           />
         )}
-        {/* 具材 */}
         {ingredientList.map((ing) => {
           let ingImage = negiImg;
           if (ing.type === 'niku') ingImage = nikuImg;
@@ -240,15 +223,14 @@ const GameStage = () => {
             <KonvaImage
               key={ing.id}
               image={ingImage}
-              x={ing.x}
+              x={ing.x + visualOffsetX}
               y={ing.y}
-              width={40}
-              height={40}
+              width={ingredientSize}
+              height={ingredientSize}
             />
           );
         })}
       </Layer>
-
       {/* パーティクルエフェクトレイヤー */}
       <Layer>
         {particles.map((p) => (
@@ -263,29 +245,6 @@ const GameStage = () => {
           />
         ))}
       </Layer>
-
-      {/* デバッグ用：当たり判定楕円 */}
-      <Layer>
-        <Ellipse
-          x={charCenterX}
-          y={charCenterY}
-          radiusX={CHAR_RX}
-          radiusY={CHAR_RY}
-          fill="rgba(128, 0, 128, 0.3)"
-          listening={false}
-        />
-        {ingredientList.map((ing) => (
-          <Circle
-            key={`col-${ing.id}`}
-            x={ing.x + 20}
-            y={ing.y + 20}
-            radius={7} // こちらはそのまま小さく
-            fill="rgba(128, 0, 128, 0.3)"
-            listening={false}
-          />
-        ))}
-      </Layer>
-
       {/* 右上：次に拾う具材表示 */}
       <Layer>
         <Rect

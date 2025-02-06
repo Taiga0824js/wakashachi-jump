@@ -1,6 +1,3 @@
-// ==================================
-// src/components/TouchArea.jsx
-// ==================================
 import React from 'react';
 import { useDrag } from 'react-use-gesture';
 
@@ -26,9 +23,11 @@ const TouchArea = ({ onJump }) => {
         justifyContent: 'center',
         alignItems: 'center',
         pointerEvents: 'auto',
+        touchAction: 'none', // タッチ時のズームや拡大を無効化
       }}
+      onTouchStart={(e) => e.preventDefault()} // デフォルトのタッチ挙動を抑止
     >
-      <p style={{ color: '#fff', fontSize: '18px' }}>タップでジャンプ</p>
+      <p style={{ color: '#fff', fontSize: '18px', margin: 0 }}>タップでジャンプ</p>
     </div>
   );
 };
