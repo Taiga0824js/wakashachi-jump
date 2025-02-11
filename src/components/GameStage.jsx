@@ -1,4 +1,3 @@
-// src/components/GameStage.jsx
 import React, { useEffect, useRef, useState } from 'react';
 import { Stage, Layer, Rect, Image as KonvaImage, Text, Circle } from 'react-konva';
 import useImage from 'use-image';
@@ -44,21 +43,22 @@ const GameStage = () => {
 
   // 背景スクロール用
   const [bgOffset, setBgOffset] = useState(0);
-
   // パーティクルエフェクト用の状態
   const [particles, setParticles] = useState([]);
-  // 各パーティクルは { id, x, y, radius, opacity }
-
-  // requestAnimationFrame 管理
   const reqRef = useRef(null);
 
-  // 具材の表示サイズと衝突判定用オフセット設定
-  const ingredientSize = 55; // 具材画像は55×55に拡大
-  const ingredientCenterOffsetX = ingredientSize / 2 + 5; // (27.5 + 5 = 32.5)
-  const ingredientCenterOffsetY = ingredientSize / 2;       // 27.5
-  const visualOffsetX = -5; // 具材画像の描画位置を左に5pxずらす
+  // 表示サイズ & オフセット
+  const ingredientSize = 55;
+  const ingredientCenterOffsetX = ingredientSize / 2 + 5; 
+  const ingredientCenterOffsetY = ingredientSize / 2;
+  const visualOffsetX = -5; 
 
-  // 固定のステージサイズ（PC版用）：1280×720
+  // 1・2段目は右にずらす量
+  // 3・4段目は 0 (ずらさない)
+  const collisionShiftRight1_2 = 10;
+  const collisionShift3_4 = 0;
+
+  // 固定のステージサイズ
   const stageWidth = 1280;
   const stageHeight = 720;
 
@@ -70,9 +70,11 @@ const GameStage = () => {
     }
     const animate = () => {
       updateCharacter();
-      // 具材移動速度：基本速度3を1点ごとに2%アップ
+
+      // 具材移動速度：基本3+スコアごとに2%UP
       const currentSpeed = 3 * (1 + 0.02 * score);
       const collisions = [];
+
       ingredientList.forEach((ing) => {
         ing.x -= currentSpeed;
         if (checkCollision(ing)) {
@@ -84,53 +86,92 @@ const GameStage = () => {
           collisions.push(ing.id);
         }
       });
+
       collisions.forEach((id) => removeIngredient(id));
       updateParticles();
+
       setBgOffset((prev) => prev - 1);
       reqRef.current = requestAnimationFrame(animate);
     };
     reqRef.current = requestAnimationFrame(animate);
+
     return () => cancelAnimationFrame(reqRef.current);
   }, [started, gameOver, ingredientList, updateCharacter, removeIngredient, score]);
 
-  // キャラクター表示用パラメータ
+  // キャラ表示
   const baseCharSize = 100;
   const characterScale = isJumping ? 1.1 : 1.0;
   const scaledCharSize = baseCharSize * characterScale;
   const charOffset = (scaledCharSize - baseCharSize) / 2;
 
-  // 衝突判定関数（修正済み）
+  // 衝突判定
   const checkCollision = (ing) => {
     const scaleFactor = 0.9;
-    // キャラクターの中心（固定位置）
     const currentCharCenterX = characterX + 50;
     const currentCharCenterY = characterY + 50;
-    // 具材の中心位置（判定用）
-    const ingCX = ing.x + ingredientCenterOffsetX;
-    const ingCY = ing.y + ingredientCenterOffsetY;
-    let rx, ry;
-    if (ing.tier === 1) {
-      // Tier1: 小さめの当たり判定で回避しやすくする
-      rx = 8 * scaleFactor;
-      ry = (8 * 1.5) * scaleFactor;
-    } else if (ing.tier === 2) {
-      if (isJumping) {
-        // ジャンプ中なら小さめにして、着地時の衝突を避ける
-        rx = 8 * scaleFactor;
-        ry = (8 * 1.5) * scaleFactor;
-      } else {
-        // 地上では、あまり大きすぎないサイズに調整
-        rx = 10 * scaleFactor;
-        ry = (10 * 1.5) * scaleFactor;
-      }
-    } else if (ing.tier === 3 || ing.tier === 4) {
-      // Tier3,4 はそのまま大きめ
-      rx = 15 * scaleFactor * 1.8;
-      ry = (15 * 1.5) * scaleFactor * 1.8;
+
+    // 具材の中心Xを段に応じてずらす
+    let ingCX = 0;
+    if (ing.tier === 1 || ing.tier === 2) {
+      ingCX = ing.x + ingredientCenterOffsetX + collisionShiftRight1_2;
+    } else {
+      ingCX = ing.x + ingredientCenterOffsetX + collisionShift3_4;
     }
+    const ingCY = ing.y + ingredientCenterOffsetY;
+
+    let rx = 0;
+    let ry = 0;
+
+    if (ing.tier === 1) {
+      // 1段目: 小さめ
+      rx = 4 * scaleFactor;
+      ry = 6 * scaleFactor;
+    } else if (ing.tier === 2) {
+      // 2段目
+      if (isJumping) {
+        rx = 7 * scaleFactor;
+        ry = 7 * 1.5 * scaleFactor;
+      } else {
+        rx = 9 * scaleFactor;
+        ry = 9 * 1.5 * scaleFactor;
+      }
+    } else if (ing.tier === 3) {
+      // 3段目を大きく
+      rx = 24 * scaleFactor * 2.0; 
+      ry = (24 * 1.5) * scaleFactor * 2.0;
+    } else if (ing.tier === 4) {
+      // 4段目
+      rx = 20 * scaleFactor * 2.0;
+      ry = (20 * 1.5) * scaleFactor * 2.0;
+    }
+
+    // 楕円形衝突判定
     const dx = currentCharCenterX - ingCX;
     const dy = currentCharCenterY - ingCY;
-    if ((dx * dx) / (rx * rx) + (dy * dy) / (ry * ry) <= 1) {
+    const ellipseCollision = ((dx * dx) / (rx * rx) + (dy * dy) / (ry * ry)) <= 1;
+
+    // ★ 2段目用の薄い壁判定を修正
+    // 具材の中央から地面に向けて、細い壁の当たり判定を設置
+    let underWallHit = false;
+    if (ing.tier === 2) {
+      const wallWidth = 20;  // 薄い壁の横幅（細い壁）
+      const wallHeight = 30; // 薄い壁の高さ
+      const wallX1 = ing.x + ingredientCenterOffsetX - wallWidth / 2;
+      const wallX2 = ing.x + ingredientCenterOffsetX + wallWidth / 2;
+      const wallY1 = ing.y + ingredientCenterOffsetY;
+      const wallY2 = wallY1 + wallHeight;
+      if (
+        currentCharCenterX >= wallX1 &&
+        currentCharCenterX <= wallX2 &&
+        currentCharCenterY >= wallY1 &&
+        currentCharCenterY <= wallY2
+      ) {
+        underWallHit = true;
+      }
+    }
+
+    if (ellipseCollision || underWallHit) {
+      // 具材が必要か判定
       const needed = orderTypes[currentIngredientIndex];
       if (ing.type === needed) {
         if (currentIngredientIndex === orderTypes.length - 1) {
@@ -149,7 +190,7 @@ const GameStage = () => {
     return false;
   };
 
-  // パーティクルの追加・更新
+  // パーティクル
   const addParticle = (x, y) => {
     const id = Date.now();
     const newParticle = { id, x, y, radius: 10, opacity: 1.0 };
@@ -205,6 +246,7 @@ const GameStage = () => {
       </Layer>
       {/* キャラクター＆具材レイヤー */}
       <Layer>
+        {/* キャラクター */}
         {hitoImg && (
           <KonvaImage
             image={hitoImg}
@@ -214,6 +256,7 @@ const GameStage = () => {
             height={scaledCharSize}
           />
         )}
+        {/* 具材リスト */}
         {ingredientList.map((ing) => {
           let ingImage = negiImg;
           if (ing.type === 'niku') ingImage = nikuImg;
@@ -263,6 +306,7 @@ const GameStage = () => {
           fontSize={18}
           fill="#000"
         />
+        {/* 必要な具材アイコン */}
         {orderTypes[currentIngredientIndex] === 'negi' && (
           <KonvaImage
             image={negiImg}

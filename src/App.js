@@ -33,17 +33,19 @@ function App() {
   const BASE_HEIGHT = 720;
 
   // 「cover」方式でスケール係数を計算（ウィンドウ全体を埋めるために、大きい方を採用）
-  const scaleFactor = Math.max(dimensions.width / BASE_WIDTH, dimensions.height / BASE_HEIGHT);
+  const scaleFactor = Math.max(
+    dimensions.width / BASE_WIDTH,
+    dimensions.height / BASE_HEIGHT
+  );
   const scaledWidth = BASE_WIDTH * scaleFactor;
   const scaledHeight = BASE_HEIGHT * scaleFactor;
   // 画面全体にフィールドが埋まるように中央配置するためのオフセット
   const offsetLeft = (dimensions.width - scaledWidth) / 2;
   const offsetTop = (dimensions.height - scaledHeight) / 2;
-  // 上部が見切れるので、さらに下に移動させるための追加オフセットを設定（ここを40pxに変更）
-  const extraTopOffset = 40; // 以前は30pxだったが、ここで少し下に持っていくため40pxに変更
+  // 上部が見切れるので、さらに下に移動させるための追加オフセット
+  const extraTopOffset = 40; 
   const offsetTopAdjusted = offsetTop + extraTopOffset;
 
-  // 固定サイズコンテナ（フィールド）を、スケールして配置するスタイル
   const containerStyle = {
     width: `${BASE_WIDTH}px`,
     height: `${BASE_HEIGHT}px`,
@@ -62,7 +64,7 @@ function App() {
     gameOver,
     restartGame,
     addIngredient,
-    addScore, // debug用
+    addScore,
   } = useGameStore();
 
   const { playSound: playBGM, stopSound: stopBGM } = useAudio(bgmSound, 0.5, true);
@@ -83,6 +85,7 @@ function App() {
   }, [started, gameOver, isJumping, setStarted, playBGM, startJump]);
 
   useEffect(() => {
+    // デバッグキー: i+o+p 同時押しでスコア+10
     const keysPressed = {};
     const handleKeyDown = (e) => {
       keysPressed[e.key.toLowerCase()] = true;
@@ -112,24 +115,26 @@ function App() {
     }
   };
 
+  // ----------------------------------------------------
+  // 1段目 : y=300
+  // 2段目 : y=280 (少し上)
+  // 3段目 : y=220
+  // 4段目 : y=180
+  // ----------------------------------------------------
   const spawnIngredient = () => {
     const items = ['negi', 'niku', 'abura', 'kamaboko'];
     const rItem = Math.floor(Math.random() * items.length);
     const type = items[rItem];
 
-    // 4段編成：
-    // Tier1: y = 300  (通常、地上で取れる)
-    // Tier2: y = 310  ← もしジャンプしなければ、確実に触れてしまう位置
-    // Tier3: y = 220
-    // Tier4: y = 180
     const tiers = [
       { tier: 1, y: 300 },
-      { tier: 2, y: 310 },
+      { tier: 2, y: 280 },
       { tier: 3, y: 220 },
       { tier: 4, y: 180 },
     ];
     const rTier = Math.floor(Math.random() * tiers.length);
     const { tier, y } = tiers[rTier];
+
     const randomXOffset = Math.floor(Math.random() * 60) + 60;
     addIngredient({
       id: Date.now(),
@@ -191,7 +196,9 @@ function App() {
               exit={{ opacity: 0 }}
             >
               <div style={styles.infoBox}>
-                <p style={styles.message}>スペース or 画面下タップでスタート</p>
+                <p style={styles.message}>
+                  スペース or 画面下タップでスタート
+                </p>
               </div>
             </motion.div>
           )}
