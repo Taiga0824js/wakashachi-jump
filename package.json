@@ -1,12 +1,15 @@
 {
   "name": "curry-udon-game",
   "version": "0.1.0",
+  "type": "module",
   "private": true,
   "dependencies": {
     "cra-template": "1.2.0",
+    "dotenv": "^16.4.7",
     "framer-motion": "^12.0.6",
     "howler": "^2.2.4",
     "konva": "^9.3.18",
+    "openai": "^4.85.2",
     "qrcode.react": "^4.2.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -21,7 +24,8 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "prepare": "husky install"
   },
   "eslintConfig": {
     "extends": [
@@ -40,5 +44,8 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "husky": "^8.0.0"
   }
 }

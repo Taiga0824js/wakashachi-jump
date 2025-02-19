@@ -1,5 +1,5 @@
 // ==================================
-// src/components/HighScoreManager.jsx
+// src/components/HighScoreManager.jsxooon
 // ==================================
 import { useEffect } from 'react';
 import useGameStore from '../hooks/useGameStore';
